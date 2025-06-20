@@ -1,9 +1,9 @@
-import NextAuth from "next-auth";
+import NextAuth, { NextAuthOptions } from "next-auth";
 import EmailProvider from "next-auth/providers/email";
 import { PrismaAdapter } from "@next-auth/prisma-adapter";
 import prisma from "@/lib/prisma"; // We'll create this file next
 
-const handler = NextAuth({
+export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     EmailProvider({
@@ -16,16 +16,16 @@ const handler = NextAuth({
         }
       },
       from: process.env.EMAIL_FROM,
-      // Custom validation for Queen's University email
-      async validateEmail(email: string) {
-        const queensEmail = email.toLowerCase().endsWith('@queensu.ca');
-        if (!queensEmail) {
-          throw new Error('Only Queen\'s University email addresses are allowed');
-        }
-        return true;
-      }
     })
   ],
+  // Dynamically set base URL
+  ...(process.env.NEXTAUTH_URL ? { 
+    url: process.env.NEXTAUTH_URL 
+  } : {
+    url: process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : 'http://localhost:3000'
+  }),
   callbacks: {
     // Restrict sign-in to only Queen's University emails
     async signIn({ user, account }) {
@@ -46,6 +46,8 @@ const handler = NextAuth({
     signIn: '/auth/signin',
     error: '/auth/error'
   }
-});
+};
+
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST }; 
